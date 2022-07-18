@@ -1,0 +1,59 @@
+service: laravel-aws
+
+provider:
+    name: aws
+    # The AWS region in which to deploy (us-east-1 is the default)
+    region: us-east-1
+    # The stage of the application, e.g. dev, production, staging… ('dev' is the default)
+    stage: dev
+    runtime: provided.al2
+
+package:
+    # Directories to exclude from deployment
+    patterns:
+        - '!node_modules/**'
+        - '!public/storage'
+        - '!resources/assets/**'
+        - '!storage/**'
+        - '!tests/**'
+
+functions:
+    # This function runs the Laravel website/API
+    web:
+        handler: public/index.php
+        environment:
+            LOG_CHANNEL: stderr
+            SESSION_DRIVER: array
+            CACHE_DRIVER: array
+        timeout: 28 # in seconds (API Gateway has a timeout of 29 seconds)
+        layers:
+            - ${bref:layer.php-81-fpm}
+        events:
+            - httpApi: '*'
+        vpc:
+          securityGroupIds:
+            - sg-08e98c5d868acf5f6
+          subnetIds:
+            - subnet-034b4200426df91e7
+            - subnet-08f62dae0c23e3475
+            - subnet-0d19824610f7beaa1
+            - subnet-09f4bf6d0519735fe
+    # This function lets us run artisan commands in Lambda
+    artisan:
+        handler: artisan
+        timeout: 120 # in seconds
+        layers:
+            - ${bref:layer.php-81} # PHP
+            - ${bref:layer.console} # The "console" layer
+        vpc:
+          securityGroupIds:
+            - sg-08e98c5d868acf5f6
+          subnetIds:
+            - subnet-034b4200426df91e7
+            - subnet-08f62dae0c23e3475
+            - subnet-0d19824610f7beaa1
+            - subnet-09f4bf6d0519735fe
+
+plugins:
+    # We need to include the Bref plugin
+    - ./vendor/bref/bref
